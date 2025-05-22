@@ -1,32 +1,37 @@
 <template>
   <aside class="sidebar-container">
     <div class="sidebar-content">
-      <el-button type="primary" class="new-chat-btn" @click="startNewChat">
+      <el-button type="primary" class="new-chat-btn" @click="handleStartNewChat">
+        <el-icon class="el-icon--left"><Plus /></el-icon>
         New Chat
       </el-button>
 
       <div class="chat-history-section">
         <h3>Chat History</h3>
-        <!-- Placeholder for chat history items -->
-        <ul v-if="chatHistory.length > 0">
-          <li v-for="item in chatHistory" :key="item.id">
-            {{ item.title }}
-          </li>
-        </ul>
-        <p v-else>No chat history yet.</p>
-        <!-- Example static items -->
-        <ul>
-          <li>Chat 1</li>
-          <li>Chat 2</li>
-        </ul>
+        <el-scrollbar class="history-scrollbar">
+          <ul v-if="chatHistoryList.length > 0" class="chat-history-list">
+            <ChatHistoryItem
+              v-for="item in chatHistoryList"
+              :key="item.id"
+              :id="item.id"
+              :title="item.title"
+              :lastActivity="item.lastActivity"
+              :isActive="item.id === currentConversationId"
+              @select-chat="handleSelectConversation"
+            />
+          </ul>
+          <p v-else class="no-history-text">No chat history yet.</p>
+        </el-scrollbar>
       </div>
 
       <div class="sidebar-footer">
         <router-link to="/profile" class="sidebar-link">
-          User Account/Settings
+          <el-icon class="el-icon--left"><User /></el-icon>
+          User Account
         </router-link>
         <div class="sidebar-link" @click="handleFileManagement">
-          File Management (Placeholder)
+          <el-icon class="el-icon--left"><Folder /></el-icon>
+          File Management
         </div>
       </div>
     </div>
@@ -34,25 +39,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { ElButton } from 'element-plus';
+import { computed, onMounted } from 'vue';
+import { ElButton, ElScrollbar, ElIcon } from 'element-plus';
+import { Plus, User, Folder } from '@element-plus/icons-vue';
+import { useChatStore } from '@/store/chatStore';
+import ChatHistoryItem from '@/components/chat/ChatHistoryItem.vue';
 
-interface ChatHistoryItem {
-  id: string;
-  title: string;
-}
+const chatStore = useChatStore();
 
-const chatHistory = ref<ChatHistoryItem[]>([]);
+const chatHistoryList = computed(() => chatStore.getChatHistoryList);
+const currentConversationId = computed(() => chatStore.currentConversationId);
 
-const startNewChat = () => {
-  console.log('Starting new chat...');
-  // Logic to start a new chat will be added later
+const handleStartNewChat = () => {
+  chatStore.startNewConversation();
+};
+
+const handleSelectConversation = (conversationId: string) => {
+  chatStore.selectConversation(conversationId);
 };
 
 const handleFileManagement = () => {
-  console.log('File management clicked...');
+  console.log('File management clicked (placeholder)...');
   // Logic for file management will be added later
 };
+
+onMounted(() => {
+  chatStore.loadChatHistory(); // Load history if any (currently a no-op or mock initializer)
+});
 </script>
 
 <style scoped>
@@ -66,59 +79,73 @@ const handleFileManagement = () => {
 }
 
 .sidebar-content {
-  padding: 20px;
+  padding: 15px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Ensure scrollbar is contained */
 }
 
 .new-chat-btn {
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .chat-history-section {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* For scrollbar content */
 }
 
 .chat-history-section h3 {
-  font-size: 1rem;
-  color: #333;
-  margin-bottom: 10px;
+  font-size: 0.9rem; /* Slightly smaller */
+  color: #555;
+  margin-bottom: 8px;
+  padding-left: 5px;
 }
 
-.chat-history-section ul {
+.history-scrollbar {
+  flex-grow: 1;
+}
+
+.chat-history-list {
   list-style-type: none;
   padding: 0;
   margin: 0;
 }
 
-.chat-history-section li {
-  padding: 8px 0;
-  cursor: pointer;
-  color: #555;
-}
-
-.chat-history-section li:hover {
-  color: #007bff;
+.no-history-text {
+  text-align: center;
+  color: #888;
+  font-size: 0.85rem;
+  padding: 10px;
 }
 
 .sidebar-footer {
-  margin-top: auto; /* Pushes footer to the bottom */
-  padding-top: 20px;
+  margin-top: auto;
+  padding-top: 15px;
   border-top: 1px solid #e0e0e0;
 }
 
 .sidebar-link {
-  display: block;
-  padding: 10px 0;
+  display: flex; /* Use flex for icon alignment */
+  align-items: center;
+  padding: 10px 5px;
   color: #333;
   text-decoration: none;
   cursor: pointer;
+  font-size: 0.9rem;
+  border-radius: 4px;
 }
 
 .sidebar-link:hover {
+  background-color: #e9ecef;
   color: #007bff;
+}
+
+.sidebar-link .el-icon {
+  margin-right: 8px;
 }
 </style>

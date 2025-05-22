@@ -1,41 +1,93 @@
 <template>
-  <el-card class="dynamic-chart-container">
-    <template #header>
-      <div>
-        <span>Chart: {{ chartType }}</span>
-      </div>
-    </template>
-    <div class="chart-placeholder">
-      <p>Chart Type: {{ chartType }}</p>
-      <p>Data received: {{ chartData ? 'Yes' : 'No' }}</p>
-      <p>Options received: {{ chartOptions ? 'Yes' : 'No' }}</p>
-      <p>Chart will render here.</p>
-      <!-- Placeholder for a chart library like ECharts/Chart.js -->
-      <el-empty description="Chart library not integrated yet" />
-    </div>
-  </el-card>
+  <div ref="chartContainerRef" class="dynamic-chart-echarts-container"></div>
 </template>
 
 <script setup lang="ts">
-import { ElCard, ElEmpty } from 'element-plus';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import * as echarts from 'echarts/core';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
+import { TitleComponent, TooltipComponent, GridComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
 
-interface Props {
-  chartType: string; // e.g., 'line', 'bar', 'pie'
-  chartData: object; // Structure will depend on the charting library
-  chartOptions: object; // Generic for now
-}
+// Register necessary ECharts components
+echarts.use([
+  TitleComponent, TooltipComponent, GridComponent, LegendComponent,
+  BarChart, LineChart, PieChart,
+  CanvasRenderer
+]);
 
-defineProps<Props>();
+const props = defineProps({
+  chartOptions: {
+    type: Object,
+    required: true,
+    default: () => ({})
+  }
+});
+
+const chartContainerRef = ref<HTMLDivElement | null>(null);
+let chartInstance: echarts.ECharts | null = null;
+
+const initChart = () => {
+  if (chartContainerRef.value) {
+    chartInstance = echarts.init(chartContainerRef.value);
+    if (props.chartOptions && Object.keys(props.chartOptions).length > 0) {
+      chartInstance.setOption(props.chartOptions);
+    }
+  }
+};
+
+const updateChart = (newOptions: echarts.EChartsOption) => {
+  if (chartInstance && newOptions && Object.keys(newOptions).length > 0) {
+    chartInstance.setOption(newOptions, true); // true for notMerge
+  } else if (chartInstance && (!newOptions || Object.keys(newOptions).length === 0)) {
+    chartInstance.clear(); // Clear chart if options are empty
+  }
+};
+
+// Basic resize handling
+const handleResize = () => {
+  chartInstance?.resize();
+};
+
+onMounted(() => {
+  // Call nextTick to ensure DOM is ready for chart init
+  nextTick(() => {
+    initChart();
+  });
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  chartInstance?.dispose();
+  window.removeEventListener('resize', handleResize);
+});
+
+watch(() => props.chartOptions, (newOptions) => {
+  // Ensure chart is initialized before trying to set options
+  if (chartInstance) {
+    updateChart(newOptions as echarts.EChartsOption);
+  } else {
+    // If chart is not yet initialized (e.g. options came in very fast)
+    // try initializing it. This might also happen if onMounted's nextTick
+    // hasn't fired before options are available.
+    nextTick(() => {
+      if (!chartInstance && chartContainerRef.value) {
+        initChart(); // This will also call setOption if props.chartOptions is valid
+      } else {
+        updateChart(newOptions as echarts.EChartsOption);
+      }
+    });
+  }
+}, { deep: true });
+
 </script>
 
 <style scoped>
-.dynamic-chart-container {
+.dynamic-chart-echarts-container {
+  width: 100%;
+  min-height: 300px; /* Default height, can be overridden by parent or specific styles */
+  /* max-width: 600px; /* Example, adjust as needed or make it responsive */
   margin-top: 10px;
   margin-bottom: 10px;
-}
-.chart-placeholder {
-  text-align: center;
-  color: #666;
-  padding: 20px;
 }
 </style>
